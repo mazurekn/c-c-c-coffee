@@ -48,31 +48,39 @@
     <button id="start-brew-btn" class="primary-button">Start Brewing →</button>
   </div>
 
-  <!-- View 2: Brew -->
-  <div id="brew-view" class="view hidden">
-    <button class="back-button" id="brew-back-btn">← Back</button>
-    
-    <h2>Make...Coffee?</h2>
-    
-    <div id="brew-stats">
-      <p>Total Coffee: <strong id="brew-coffee">20g</strong></p>
-      <p>Total Water: <strong id="brew-water">320g</strong></p>
-      <p>Total Ice: <strong id="brew-ice">0g</strong></p>
-    </div>
-    
-    <div id="timer-display">
-      <h1 id="timer-text">00:00</h1>
-    </div>
-    
-    <div id="pour-instruction">
-      <p>Press Start to begin brewing</p>
-    </div>
-    
-    <div class="brew-controls">
-      <button id="start-pause-btn">Start</button>
-      <button id="stop-btn">Stop</button>
+<!-- View 2: Brew -->
+<div id="brew-view" class="view hidden">
+  <button class="back-button" id="brew-back-btn">← Back</button>
+  
+  <h2>Make... Coffee?</h2>
+  
+  <div id="brew-stats">
+    <p>Coffee Grounds: <strong id="brew-coffee">20g</strong></p>
+    <p>Water: <strong id="brew-water">320g</strong></p>
+    <p>Ice: <strong id="brew-ice">0g</strong></p>
+  </div>
+  
+  <!-- Combined Timer Display -->
+  <div id="timer-display">
+    <div class="timer-label">Next Pour In</div>
+    <h1 id="interval-timer-text">00:30</h1>
+    <div class="total-timer-small">
+      Total: <span id="total-timer-text">02:30</span> remaining
     </div>
   </div>
+  
+  <!-- Pour Target -->
+  <div id="pour-instruction">
+    <p class="pour-label">Pour Water To</p>
+    <p class="pour-target" id="pour-target">0g</p>
+    <p class="interval-info" id="interval-info">Interval 1 of 5</p>
+  </div>
+  
+  <div class="brew-controls">
+    <button id="start-pause-btn">Start</button>
+    <button id="stop-btn">Stop & Reset</button>
+  </div>
+</div>
 
   <!-- Load JavaScript -->
   <script src="app.js"></script>

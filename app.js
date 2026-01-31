@@ -229,34 +229,43 @@ function updateRecipeDisplay() {
 }
 
 function startBrewView() {
-    // Make sure we have current recipe and instructions
-    if (!appState.currentRecipe || !appState.currentInstructions) {
-        console.error('No recipe available');
-        return;
-    }
-
-    const recipe = appState.currentRecipe;
-    const instructions = appState.currentInstructions;
-
-    // Copy recipe settings to brew view
-    document.getElementById('brew-coffee').textContent = `${recipe.coffeeGrams.toFixed(0)}g`;
-    document.getElementById('brew-water').textContent = `${recipe.waterGrams.toFixed(0)}g`;
-    document.getElementById('brew-ice').textContent = `${recipe.iceGrams.toFixed(0)}g`;
-
-    // Reset brew session state
-    appState.brewSession.isActive = false;
-    appState.brewSession.isPaused = false;
-    appState.brewSession.elapsedSeconds = 0;
-    appState.brewSession.currentIntervalIndex = 0;
-
-    // Reset UI
-    document.getElementById('timer-text').textContent = '00:00';
-    document.getElementById('pour-instruction').innerHTML = '<p>Press Start to begin brewing</p>';
-    document.getElementById('start-pause-btn').textContent = 'Start';
-    document.getElementById('start-pause-btn').style.display = 'block'; // Make sure it's visible
-
-    // Navigate to brew view
-    pushView('brew');
+  // Make sure we have current recipe and instructions
+  if (!appState.currentRecipe || !appState.currentInstructions) {
+    console.warn('Recipe not initialized, creating now...');
+    updateRecipeDisplay();
+  }
+  
+  const recipe = appState.currentRecipe;
+  const instructions = appState.currentInstructions;
+  
+  // Copy recipe settings to brew view
+  document.getElementById('brew-coffee').textContent = `${recipe.coffeeGrams.toFixed(1)}g`;
+  document.getElementById('brew-water').textContent = `${recipe.waterGrams.toFixed(1)}g`;
+  document.getElementById('brew-ice').textContent = `${recipe.iceGrams.toFixed(1)}g`;
+  
+  // Reset brew session state
+  appState.brewSession.isActive = false;
+  appState.brewSession.isPaused = false;
+  appState.brewSession.elapsedSeconds = 0;
+  appState.brewSession.currentIntervalIndex = 0;
+  
+  // Initialize timers to starting values
+  const totalTime = instructions.totalTime;
+  const firstIntervalTime = instructions.intervalTime;
+  
+  document.getElementById('interval-timer-text').textContent = formatTime(firstIntervalTime);
+  document.getElementById('total-timer-text').textContent = formatTime(totalTime);
+  
+  // Initialize pour target
+  document.getElementById('pour-target').textContent = '0g';
+  document.getElementById('interval-info').textContent = 'Ready to start';
+  document.getElementById('pour-instruction').classList.remove('pour-active');
+  
+  document.getElementById('start-pause-btn').textContent = 'Start';
+  document.getElementById('start-pause-btn').style.display = 'block';
+  
+  // Navigate to brew view
+  pushView('brew');
 }
 
 // ===== Timer Variables =====
@@ -264,9 +273,9 @@ let timerInterval = null;
 
 // ===== Timer Functions =====
 function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 function startBrew() {
@@ -280,16 +289,14 @@ function startBrew() {
   appState.brewSession.currentIntervalIndex = 0;
   
   const intervals = appState.currentInstructions.getAllIntervals();
-  console.log('=== BREW START ===');
-  console.log('Total intervals:', intervals.length);
-  console.log('All intervals:', intervals);
-  console.log('Interval times:', intervals.map(i => i.time));
+  const totalTime = appState.currentInstructions.totalTime;
   
-  // Show first pour instruction immediately (interval 0 at time 0)
-  console.log('Showing first pour (interval 0)');
-  updatePourInstruction(0);
-  appState.brewSession.currentIntervalIndex = 1; // Move to next interval
-  console.log('Next interval to watch for:', intervals[1]);
+  console.log('=== BREW START ===');
+  console.log('Total time:', totalTime, 'seconds');
+  console.log('Intervals:', intervals);
+  
+  // Show first pour target immediately (interval 0)
+  updatePourTarget(0);
   
   // Update button text
   document.getElementById('start-pause-btn').textContent = 'Pause';
@@ -299,38 +306,42 @@ function startBrew() {
     appState.brewSession.elapsedSeconds++;
     const elapsed = appState.brewSession.elapsedSeconds;
     
-    // Update timer display
-    document.getElementById('timer-text').textContent = formatTime(elapsed);
+    // Calculate time remaining
+    const totalRemaining = totalTime - elapsed;
     
-    // Check if we need to show next pour instruction
+    // Update total timer (counting down)
+    document.getElementById('total-timer-text').textContent = formatTime(totalRemaining);
+    
+    // Calculate current interval countdown
     const currentIntervalIndex = appState.brewSession.currentIntervalIndex;
     
     if (currentIntervalIndex < intervals.length) {
-      const nextInterval = intervals[currentIntervalIndex];
+      const currentInterval = intervals[currentIntervalIndex];
+      const nextIntervalTime = currentIntervalIndex + 1 < intervals.length 
+        ? intervals[currentIntervalIndex + 1].time 
+        : totalTime;
       
-      // Log every 10 seconds to reduce spam
-      if (elapsed % 10 === 0) {
-        console.log(`[${elapsed}s] Waiting for interval ${currentIntervalIndex} at ${nextInterval.time}s`);
-      }
+      const intervalRemaining = nextIntervalTime - elapsed;
       
-      if (elapsed === nextInterval.time) {
-        console.log(`🎯 [${elapsed}s] MATCH! Showing interval ${currentIntervalIndex}`);
-        updatePourInstruction(currentIntervalIndex);
-        
-        // Vibrate if supported
-        if ('vibrate' in navigator) {
-          navigator.vibrate(200);
-        }
-        
-        // Move to next interval
+      // Update interval timer (counting down)
+      document.getElementById('interval-timer-text').textContent = formatTime(intervalRemaining);
+      
+      // Check if we've reached the next interval
+      if (currentIntervalIndex + 1 < intervals.length && 
+          elapsed === intervals[currentIntervalIndex + 1].time) {
+        console.log('Moving to next interval');
         appState.brewSession.currentIntervalIndex++;
-        console.log(`Next interval index: ${appState.brewSession.currentIntervalIndex}`);
+        updatePourTarget(appState.brewSession.currentIntervalIndex);
+        
+        // Vibrate when new pour is needed
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
+        }
       }
     }
     
     // Check if brewing is complete
-    if (elapsed >= appState.currentInstructions.totalTime) {
-      console.log('Brewing complete!');
+    if (elapsed >= totalTime) {
       completeBrew();
     }
   }, 1000);
@@ -339,86 +350,134 @@ function startBrew() {
 }
 
 function pauseBrew() {
-    appState.brewSession.isPaused = true;
-    clearInterval(timerInterval);
-    timerInterval = null;
-
-    // Update button text
-    document.getElementById('start-pause-btn').textContent = 'Resume';
-
-    console.log('Brew paused');
+  appState.brewSession.isPaused = true;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  
+  // Update button text
+  document.getElementById('start-pause-btn').textContent = 'Resume';
+  
+  console.log('Brew paused');
 }
 
 function resumeBrew() {
-    appState.brewSession.isPaused = false;
-
-    // Update button text
-    document.getElementById('start-pause-btn').textContent = 'Pause';
-
-    // Restart the timer from current elapsed time
-    timerInterval = setInterval(() => {
-        appState.brewSession.elapsedSeconds++;
-
-        // Update timer display
-        document.getElementById('timer-text').textContent =
-            formatTime(appState.brewSession.elapsedSeconds);
-
-        const intervals = appState.currentInstructions.getAllIntervals();
-        const currentInterval = appState.brewSession.currentIntervalIndex;
-
-        // Check if we need to show next pour instruction
-        if (currentInterval < intervals.length &&
-            appState.brewSession.elapsedSeconds === intervals[currentInterval].time) {
-            updatePourInstruction(currentInterval);
-
-            // Vibrate if supported
-            if ('vibrate' in navigator) {
-                navigator.vibrate(200);
-            }
-
-            appState.brewSession.currentIntervalIndex++;
+  appState.brewSession.isPaused = false;
+  
+  // Update button text
+  document.getElementById('start-pause-btn').textContent = 'Pause';
+  
+  const intervals = appState.currentInstructions.getAllIntervals();
+  const totalTime = appState.currentInstructions.totalTime;
+  
+  // Restart the timer from current elapsed time
+  timerInterval = setInterval(() => {
+    appState.brewSession.elapsedSeconds++;
+    const elapsed = appState.brewSession.elapsedSeconds;
+    
+    // Calculate time remaining
+    const totalRemaining = totalTime - elapsed;
+    
+    // Update total timer
+    document.getElementById('total-timer-text').textContent = formatTime(totalRemaining);
+    
+    // Calculate current interval countdown
+    const currentIntervalIndex = appState.brewSession.currentIntervalIndex;
+    
+    if (currentIntervalIndex < intervals.length) {
+      const nextIntervalTime = currentIntervalIndex + 1 < intervals.length 
+        ? intervals[currentIntervalIndex + 1].time 
+        : totalTime;
+      
+      const intervalRemaining = nextIntervalTime - elapsed;
+      
+      // Update interval timer
+      document.getElementById('interval-timer-text').textContent = formatTime(intervalRemaining);
+      
+      // Check if we've reached the next interval
+      if (currentIntervalIndex + 1 < intervals.length && 
+          elapsed === intervals[currentIntervalIndex + 1].time) {
+        appState.brewSession.currentIntervalIndex++;
+        updatePourTarget(appState.brewSession.currentIntervalIndex);
+        
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
         }
-
-        // Check if brewing is complete
-        if (appState.brewSession.elapsedSeconds >= appState.currentInstructions.totalTime) {
-            completeBrew();
-        }
-    }, 1000);
-
-    console.log('Brew resumed');
+      }
+    }
+    
+    // Check if brewing is complete
+    if (elapsed >= totalTime) {
+      completeBrew();
+    }
+  }, 1000);
+  
+  console.log('Brew resumed');
 }
 
 function stopBrew() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-
-    // Reset brew session
-    appState.brewSession.isActive = false;
-    appState.brewSession.isPaused = false;
-    appState.brewSession.elapsedSeconds = 0;
-    appState.brewSession.currentIntervalIndex = 0;
-
-    console.log('Brew stopped');
-
-    // Return to recipe view
-    popToRoot();
+  clearInterval(timerInterval);
+  timerInterval = null;
+  
+  // Reset brew session
+  appState.brewSession.isActive = false;
+  appState.brewSession.isPaused = false;
+  appState.brewSession.elapsedSeconds = 0;
+  appState.brewSession.currentIntervalIndex = 0;
+  
+  console.log('Brew stopped');
+  
+  // Return to recipe view
+  popToRoot();
 }
 
 function completeBrew() {
-    clearInterval(timerInterval);
-    timerInterval = null;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  
+  // Update UI to show completion
+  document.getElementById('interval-timer-text').textContent = '00:00';
+  document.getElementById('total-timer-text').textContent = '00:00';
+  
+  const pourInstruction = document.getElementById('pour-instruction');
+  pourInstruction.classList.remove('pour-active');
+  pourInstruction.innerHTML = `
+    <p style="color: #4CAF50; font-weight: bold; font-size: 24px; margin: 20px 0;">
+      ✓ Brewing Complete!
+    </p>
+    <p style="color: #666; font-size: 18px;">
+      Enjoy your coffee ☕
+    </p>
+  `;
+  
+  document.getElementById('start-pause-btn').style.display = 'none';
+  
+  // Vibrate to indicate completion
+  if ('vibrate' in navigator) {
+    navigator.vibrate([200, 100, 200, 100, 200]);
+  }
+  
+  console.log('Brew complete!');
+}
 
-    // Update UI to show completion
-    document.getElementById('pour-instruction').innerHTML =
-        '<p style="color: #4CAF50; font-weight: bold;">✓ Brewing Complete! Enjoy your coffee.</p>';
-    document.getElementById('start-pause-btn').style.display = 'none';
-
-    // Vibrate to indicate completion
-    if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-    }
-
-    console.log('Brew complete!');
+function updatePourTarget(intervalIndex) {
+  const intervals = appState.currentInstructions.getAllIntervals();
+  
+  if (intervalIndex >= intervals.length) {
+    return;
+  }
+  
+  const interval = intervals[intervalIndex];
+  const pourInstruction = document.getElementById('pour-instruction');
+  
+  // Add pulsing animation
+  pourInstruction.classList.add('pour-active');
+  
+  // Update the target amount (cumulative)
+  document.getElementById('pour-target').textContent = `${interval.cumulativeWater.toFixed(1)}g`;
+  document.getElementById('interval-info').textContent = 
+    `Interval ${interval.intervalNumber} of ${intervals.length}`;
+  
+  console.log(`Pour target: ${interval.cumulativeWater.toFixed(1)}g (Interval ${interval.intervalNumber})`);
 }
 
 function updatePourInstruction(intervalIndex) {
