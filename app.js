@@ -215,9 +215,19 @@ function updateRecipeDisplay() {
     const instructions = new BrewingInstructions(recipe);
 
     // Update the display
+    document.getElementById('coffee-amount-display').textContent = `${recipe.producedCoffeeAmount.ounces.toFixed(0)}oz`;
+    document.getElementById('coffee-slider').value = recipe.producedCoffeeAmount.ounces.toFixed(0);
     document.getElementById('coffee-display').textContent = `${recipe.coffeeGrams.toFixed(0)}g`;
     document.getElementById('water-display').textContent = `${recipe.waterGrams.toFixed(0)}g`;
     document.getElementById('ice-display').textContent = `${recipe.iceGrams.toFixed(0)}g`;
+
+  // Hide ice stat if zero
+  const recipeIceStat = document.getElementById('recipe-ice-stat');
+  if (recipe.iceGrams === 0) {
+    recipeIceStat.style.display = 'none';
+  } else {
+    recipeIceStat.style.display = '';
+  }
 
     // Store in state for later use
     appState.currentRecipe = recipe;
@@ -239,10 +249,19 @@ function startBrewView() {
   const instructions = appState.currentInstructions;
   
   // Copy recipe settings to brew view
-  document.getElementById('brew-coffee').textContent = `${recipe.coffeeGrams.toFixed(1)}g`;
-  document.getElementById('brew-water').textContent = `${recipe.waterGrams.toFixed(1)}g`;
-  document.getElementById('brew-ice').textContent = `${recipe.iceGrams.toFixed(1)}g`;
-  
+  document.getElementById('brew-total-coffee').textContent = `${recipe.producedCoffeeAmount.ounces.toFixed(0)}oz`;
+  document.getElementById('brew-coffee').textContent = `${recipe.coffeeGrams.toFixed(0)}g`;
+  document.getElementById('brew-water').textContent = `${recipe.waterGrams.toFixed(0)}g`;
+  document.getElementById('brew-ice').textContent = `${recipe.iceGrams.toFixed(0)}g`;
+
+  // Hide ice stat in brew view when zero
+  const brewIceStat = document.getElementById('brew-ice-stat');
+  if (recipe.iceGrams === 0) {
+    brewIceStat.style.display = 'none';
+  } else {
+    brewIceStat.style.display = '';
+  }
+
   // Reset brew session state
   appState.brewSession.isActive = false;
   appState.brewSession.isPaused = false;
@@ -445,7 +464,7 @@ function completeBrew() {
       ✓ Brewing Complete!
     </p>
     <p style="color: #666; font-size: 18px;">
-      Enjoy your coffee ☕
+      Coffee Time! ☕
     </p>
   `;
   
@@ -473,11 +492,11 @@ function updatePourTarget(intervalIndex) {
   pourInstruction.classList.add('pour-active');
   
   // Update the target amount (cumulative)
-  document.getElementById('pour-target').textContent = `${interval.cumulativeWater.toFixed(1)}g`;
+  document.getElementById('pour-target').textContent = `${interval.cumulativeWater.toFixed(0)}g`;
   document.getElementById('interval-info').textContent = 
     `Interval ${interval.intervalNumber} of ${intervals.length}`;
-  
-  console.log(`Pour target: ${interval.cumulativeWater.toFixed(1)}g (Interval ${interval.intervalNumber})`);
+
+  console.log(`Pour target: ${interval.cumulativeWater.toFixed(0)}g (Interval ${interval.intervalNumber})`);
 }
 
 function updatePourInstruction(intervalIndex) {
